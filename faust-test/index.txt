@@ -1,3 +1,0 @@
-Faust Sine Oscillator — Frequency Sweep Test
-Click the power/play button on the widget below, then drag the freq slider to sweep the sine wave from 20 Hz up to 10,000 Hz. 
-
