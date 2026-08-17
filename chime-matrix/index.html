@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Faust Chime Matrix — Intro to Music Technology</title>
+<style>
+  body {
+    font-family: -apple-system, "Helvetica Neue", Arial, sans-serif;
+    max-width: 800px;
+    margin: 3rem auto;
+    padding: 0 1.5rem;
+    background: #fafafa;
+    color: #222;
+    line-height: 1.5;
+  }
+  h1 { font-size: 1.4rem; }
+  p.note {
+    background: #eef4ff;
+    border-left: 4px solid #4a7fd6;
+    padding: 0.75rem 1rem;
+    font-size: 0.95rem;
+  }
+  p.note.warn {
+    background: #fff6e0;
+    border-left-color: #d6a54a;
+  }
+  faust-widget {
+    display: block;
+    margin-top: 2rem;
+    min-height: 320px;
+  }
+  footer {
+    margin-top: 3rem;
+    font-size: 0.8rem;
+    color: #777;
+  }
+</style>
+</head>
+<body>
+
+  <h1>Faust Chime Matrix — 10 &times; 10 Button Test</h1>
+
+  <p class="note">
+    Click the power/play button on the widget below, then tap any of the
+    100 buttons in the grid. Each one rings out on its own for about
+    10 seconds, like tapping a metallic chime — you don't need to hold
+    the button down. Try tapping several in a row to hear them layer.
+  </p>
+
+  <p class="note warn">
+    <strong>Using an iPhone/iPad?</strong> Make sure the physical mute
+    (Ring/Silent) switch on the side of the device is off — iOS silences web
+    page audio by default when that switch is flipped, even though apps like
+    YouTube or Music ignore it.
+  </p>
+
+  <faust-widget>
+    <!--
+    import("stdfaust.lib");
+
+    //------------------------------------------------------------------
+    // Frequency table
+    // Row r (0..9):  base = 48 + 50*r   -> 48, 98, 148, 198, 248, 298, 348, 398, 448, 498
+    // Column c (0..9): each pair of columns (0&1, 2&3, 4&5, 6&7, 8&9) adds
+    // floor(c/2) Hz on top of the row base -> 0,0,1,1,2,2,3,3,4,4
+    //------------------------------------------------------------------
+    freqOf(r, c) = 48 + 50 * r + c / 2;
+
+    //------------------------------------------------------------------
+    // Envelope: 20 ms attack, then an autonomous ~9.98 s release, so the
+    // total ring time is about 10 seconds regardless of how long the
+    // button is actually held -- like tapping a real chime/bell.
+    //------------------------------------------------------------------
+    attackTime = 0.02;
+    releaseTime = 9.98;
+
+    voice(r, c) = button("b%{r}_%{c}") : en.ar(attackTime, releaseTime) : *(os.osc(freqOf(r, c)));
+
+    grid = vgroup("Chime Matrix (10 x 10)",
+             par(r, 10, hgroup("row %{r}", par(c, 10, voice(r, c))))
+           );
+
+    masterGain = hslider("master gain", 0.15, 0, 1, 0.01) : si.smoo;
+
+    process = (grid :> _) * masterGain : ma.tanh;
+    -->
+  </faust-widget>
+
+  <script>
+    // On iOS Safari (and iOS Chrome/DuckDuckGo, which use the same engine),
+    // Web Audio is treated as "ambient" sound by default, which gets muted
+    // by the phone's physical mute switch. Telling the browser this page
+    // does intentional media playback avoids that. No-op everywhere else.
+    if ('audioSession' in navigator) {
+      navigator.audioSession.type = 'playback';
+    }
+  </script>
+
+  <script src="faust-web-component.js"></script>
+
+</body>
+</html>
