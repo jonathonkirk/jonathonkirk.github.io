@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Hexany Explorer</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>%F0%9F%8E%B9</text></svg>">
+<style>
+  :root {
+    --bg: #1f1f1f;
+    --panel: #2b2b2b;
+    --panel-border: #3d3d3d;
+    --text: #e6e6e6;
+    --muted: #a0a0a0;
+    --accent: #f5a623;
+    --accent-dim: #7a5518;
+    --error: #ff6b6b;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    padding: 24px;
+  }
+  main { max-width: 900px; margin: 0 auto; }
+  h1 { font-size: 1.5rem; margin: 0 0 6px 0; }
+  p.intro {
+    color: var(--muted);
+    font-size: 0.95rem;
+    line-height: 1.5;
+    max-width: 700px;
+    margin: 0 0 22px 0;
+  }
+  section.panel {
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 10px;
+    padding: 18px 20px;
+    margin-bottom: 18px;
+  }
+  h2 {
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--muted);
+    margin: 0 0 14px 0;
+  }
+  .controls-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 18px;
+    align-items: flex-end;
+  }
+  .field { display: flex; flex-direction: column; gap: 6px; }
+  .field label { font-size: 0.8rem; color: var(--muted); }
+  select, input[type="number"] {
+    background: #1a1a1a;
+    color: var(--text);
+    border: 1px solid var(--panel-border);
+    border-radius: 6px;
+    padding: 8px 10px;
+    font-size: 0.95rem;
+    width: 90px;
+  }
+  select { width: 110px; }
+  .generators { display: flex; gap: 10px; }
+  .generators .field input { width: 64px; }
+  button {
+    cursor: pointer;
+    border: none;
+    border-radius: 6px;
+    font-size: 0.95rem;
+    padding: 9px 18px;
+    font-weight: 600;
+  }
+  #btn-generate {
+    background: var(--accent);
+    color: #1a1200;
+  }
+  #btn-generate:hover { background: #ffb43e; }
+  #btn-reset {
+    background: transparent;
+    color: var(--muted);
+    border: 1px solid var(--panel-border);
+  }
+  #btn-reset:hover { color: var(--text); border-color: var(--muted); }
+  .error {
+    color: var(--error);
+    font-size: 0.85rem;
+    margin-top: 10px;
+    min-height: 1.2em;
+  }
+  .volume-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 16px;
+    padding-top: 16px;
+    border-top: 1px solid var(--panel-border);
+  }
+  .volume-row label { font-size: 0.8rem; color: var(--muted); white-space: nowrap; }
+  input[type="range"] { flex: 1; max-width: 220px; }
+
+  #scale-meta {
+    color: var(--muted);
+    font-size: 0.85rem;
+    margin-bottom: 14px;
+    line-height: 1.5;
+  }
+  #scale-meta code {
+    color: var(--accent);
+    background: #1a1a1a;
+    padding: 1px 5px;
+    border-radius: 4px;
+  }
+  .keys {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .key {
+    flex: 1 1 96px;
+    min-width: 92px;
+    background: #1a1a1a;
+    border: 1px solid var(--panel-border);
+    border-radius: 8px;
+    padding: 12px 8px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    user-select: none;
+    -webkit-user-select: none;
+    touch-action: manipulation;
+  }
+  .key:active, .key.playing {
+    background: var(--accent-dim);
+    border-color: var(--accent);
+    transform: translateY(1px);
+  }
+  .key .ratio { font-size: 1rem; font-weight: 700; color: var(--text); }
+  .key .hz { font-size: 0.8rem; color: var(--accent); }
+  .key .note { font-size: 0.72rem; color: var(--muted); }
+  .key.tonic .ratio, .key.octave .ratio { color: var(--accent); }
+  .placeholder {
+    color: var(--muted);
+    font-size: 0.9rem;
+    font-style: italic;
+  }
+  footer {
+    color: var(--muted);
+    font-size: 0.8rem;
+    line-height: 1.5;
+    margin-top: 8px;
+  }
+</style>
+</head>
+<body>
+<main>
+  <h1>Hexany Explorer</h1>
+  <p class="intro">
+    Pick a tonic pitch and four odd numbers, and this builds the six-note hexany scale they generate
+    (Erv Wilson's combination-product-set method: every pairwise product of the four numbers,
+    octave-reduced and sorted). Click the keys to hear it &mdash; click several in quick succession
+    to hear them stack into a chord.
+  </p>
+
+  <section class="panel">
+    <h2>Setup</h2>
+    <div class="controls-row">
+      <div class="field">
+        <label for="tonic-select">Tonic (octave 4)</label>
+        <select id="tonic-select"></select>
+      </div>
+      <div class="field">
+        <label>Four odd numbers</label>
+        <div class="generators">
+          <input type="number" class="gen-input" id="gen0" value="1" min="1" step="1">
+          <input type="number" class="gen-input" id="gen1" value="3" min="1" step="1">
+          <input type="number" class="gen-input" id="gen2" value="5" min="1" step="1">
+          <input type="number" class="gen-input" id="gen3" value="7" min="1" step="1">
+        </div>
+      </div>
+      <button id="btn-generate">Generate Hexany</button>
+      <button id="btn-reset">Reset</button>
+    </div>
+    <div class="error" id="error-msg"></div>
+    <div class="volume-row">
+      <label for="volume">Volume</label>
+      <input type="range" id="volume" min="0" max="1" step="0.01" value="0.5">
+    </div>
+  </section>
+
+  <section class="panel">
+    <h2>Scale</h2>
+    <div id="scale-meta"></div>
+    <div class="keys" id="keys">
+      <div class="placeholder">Generate a hexany above to hear it here.</div>
+    </div>
+  </section>
+
+  <footer>
+    Sine tones with a short attack and a slow decay, so overlapping clicks sustain into chords &mdash;
+    not meant to imitate a piano, just to make the tuning audible. Tonic frequency is computed in
+    12-tone equal temperament with A4&nbsp;=&nbsp;440&nbsp;Hz; the hexany notes themselves are just
+    intonation and will generally fall between the piano's keys, which is the point.
+  </footer>
+</main>
+
+<script>
+(() => {
+  "use strict";
+
+  // ---------- Note names C4..B4 -> semitone offset from A4 ----------
+  const NOTE_NAMES = ["C4","C#4","D4","D#4","E4","F4","F#4","G4","G#4","A4","A#4","B4"];
+  const SEMITONES_FROM_A4 = [-9,-8,-7,-6,-5,-4,-3,-2,-1,0,1,2];
+  const CHROMATIC_NAMES = ["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"];
+
+  function noteToFrequency(index) {
+    const semitones = SEMITONES_FROM_A4[index];
+    return 440 * Math.pow(2, semitones / 12);
+  }
+
+  // Populate tonic dropdown
+  const tonicSelect = document.getElementById("tonic-select");
+  NOTE_NAMES.forEach((name, i) => {
+    const opt = document.createElement("option");
+    opt.value = i;
+    opt.textContent = name;
+    if (name === "C4") opt.selected = true;
+    tonicSelect.appendChild(opt);
+  });
+
+  // ---------- Hexany math ----------
+  // Octave-reduce a positive integer product into [1,2) as an exact fraction.
+  // Because the result of dividing by the smallest power of two that lands
+  // it in [1,2) can never itself be even, num/den is already in lowest terms.
+  function octaveReduce(product) {
+    let den = 1;
+    while (product / den >= 2) den *= 2;
+    while (product / den < 1) den /= 2;
+    return { num: product, den };
+  }
+
+  function computeHexany(gens) {
+    const pairs = [];
+    for (let i = 0; i < 4; i++) {
+      for (let j = i + 1; j < 4; j++) {
+        pairs.push(gens[i] * gens[j]);
+      }
+    }
+    const reduced = pairs.map(octaveReduce);
+    reduced.sort((a, b) => (a.num / a.den) - (b.num / b.den));
+    return reduced; // 6 entries, ascending, ratio in [1,2)
+  }
+
+  function cents(ratio) {
+    return 1200 * Math.log2(ratio);
+  }
+
+  function nearestEqualTempNote(freq) {
+    const midi = 69 + 12 * Math.log2(freq / 440);
+    const rounded = Math.round(midi);
+    const deviationCents = Math.round((midi - rounded) * 100);
+    const name = CHROMATIC_NAMES[((rounded % 12) + 12) % 12];
+    const octave = Math.floor(rounded / 12) - 1;
+    const sign = deviationCents >= 0 ? "+" : "";
+    return `~${name}${octave} (${sign}${deviationCents}¢)`;
+  }
+
+  // ---------- Audio engine ----------
+  let audioCtx = null;
+  const activeNodes = [];
+
+  function ensureAudioContext() {
+    if (!audioCtx) {
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    if (audioCtx.state === "suspended") audioCtx.resume();
+    return audioCtx;
+  }
+
+  function getVolume() {
+    return parseFloat(document.getElementById("volume").value);
+  }
+
+  function playTone(freq) {
+    const ctx = ensureAudioContext();
+    const now = ctx.currentTime;
+    const peak = 0.28 * getVolume();
+
+    const osc = ctx.createOscillator();
+    osc.type = "sine";
+    osc.frequency.value = freq;
+
+    const gain = ctx.createGain();
+    gain.gain.setValueAtTime(0, now);
+    gain.gain.linearRampToValueAtTime(peak, now + 0.008);      // short attack
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + 2.2); // long decay
+
+    osc.connect(gain).connect(ctx.destination);
+    osc.start(now);
+    osc.stop(now + 2.3);
+
+    activeNodes.push({ osc, gain });
+    osc.onended = () => {
+      const idx = activeNodes.findIndex((n) => n.osc === osc);
+      if (idx !== -1) activeNodes.splice(idx, 1);
+    };
+  }
+
+  function stopAllTones() {
+    const ctx = audioCtx;
+    if (!ctx) return;
+    const now = ctx.currentTime;
+    activeNodes.forEach(({ osc, gain }) => {
+      try {
+        gain.gain.cancelScheduledValues(now);
+        gain.gain.setValueAtTime(gain.gain.value, now);
+        gain.gain.linearRampToValueAtTime(0.0001, now + 0.03);
+        osc.stop(now + 0.04);
+      } catch (e) { /* already stopped */ }
+    });
+    activeNodes.length = 0;
+  }
+
+  // ---------- UI wiring ----------
+  const errorMsg = document.getElementById("error-msg");
+  const scaleMeta = document.getElementById("scale-meta");
+  const keysContainer = document.getElementById("keys");
+  const genInputs = [0, 1, 2, 3].map((i) => document.getElementById("gen" + i));
+
+  function readGenerators() {
+    const values = genInputs.map((el) => parseInt(el.value, 10));
+    if (values.some((v) => !Number.isFinite(v) || v < 1)) {
+      throw new Error("All four numbers must be positive integers.");
+    }
+    return values;
+  }
+
+  function buildKeys(tonicFreq, hexany, generators) {
+    keysContainer.innerHTML = "";
+
+    const entries = [
+      { num: 1, den: 1, label: "1/1", cls: "tonic" },
+      ...hexany.map((r) => ({ num: r.num, den: r.den, label: `${r.num}/${r.den}`, cls: "" })),
+      { num: 2, den: 1, label: "2/1", cls: "octave" },
+    ];
+
+    entries.forEach((entry) => {
+      const ratio = entry.num / entry.den;
+      const freq = tonicFreq * ratio;
+
+      const key = document.createElement("button");
+      key.className = "key " + entry.cls;
+      key.innerHTML = `
+        <span class="ratio">${entry.label}</span>
+        <span class="hz">${freq.toFixed(2)} Hz</span>
+        <span class="note">${nearestEqualTempNote(freq)}</span>
+      `;
+      key.addEventListener("click", () => {
+        playTone(freq);
+        key.classList.add("playing");
+        setTimeout(() => key.classList.remove("playing"), 150);
+      });
+      keysContainer.appendChild(key);
+    });
+
+    scaleMeta.innerHTML =
+      `Generators <code>${generators.join(", ")}</code> &middot; tonic ` +
+      `<code>${tonicFreq.toFixed(2)} Hz</code> &middot; ` +
+      `pairwise products: ${generators.flatMap((a, i) => generators.slice(i + 1).map((b) => a * b)).join(", ")}`;
+  }
+
+  document.getElementById("btn-generate").addEventListener("click", () => {
+    errorMsg.textContent = "";
+    let generators;
+    try {
+      generators = readGenerators();
+    } catch (e) {
+      errorMsg.textContent = e.message;
+      return;
+    }
+
+    const uniqueCount = new Set(generators).size;
+    if (uniqueCount < 4) {
+      errorMsg.textContent =
+        "Note: the four numbers aren't all distinct, so some of the six notes may coincide.";
+    }
+    const hasEven = generators.some((g) => g % 2 === 0);
+    if (hasEven && uniqueCount === 4) {
+      errorMsg.textContent =
+        "Note: even numbers are allowed here, but by convention hexanies use four odd numbers " +
+        "(an even generator just duplicates the harmonic identity of its odd half).";
+    }
+
+    const tonicIndex = parseInt(tonicSelect.value, 10);
+    const tonicFreq = noteToFrequency(tonicIndex);
+    const hexany = computeHexany(generators);
+
+    buildKeys(tonicFreq, hexany, generators);
+  });
+
+  document.getElementById("btn-reset").addEventListener("click", () => {
+    stopAllTones();
+    tonicSelect.value = "0"; // C4
+    const defaults = [1, 3, 5, 7];
+    genInputs.forEach((el, i) => { el.value = defaults[i]; });
+    errorMsg.textContent = "";
+    scaleMeta.innerHTML = "";
+    keysContainer.innerHTML = '<div class="placeholder">Generate a hexany above to hear it here.</div>';
+  });
+})();
+</script>
+</body>
+</html>
